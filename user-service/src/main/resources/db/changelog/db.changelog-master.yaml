@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/migrations/create-users.sql
+  - include:
+      file: db/changelog/migrations/create-outbox.sql

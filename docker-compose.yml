@@ -1,0 +1,180 @@
+services:
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Docker/Dockerfile
+    container_name: user-service
+    depends_on:
+      user-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/user_service
+      SPRING_DATASOURCE_USERNAME: user_service_user
+      SPRING_DATASOURCE_PASSWORD: user_service_password
+      JWT_SECRET: replace-with-a-long-user-service-secret-for-local-dev
+      JWT_ISSUER: user-service
+      JWT_EXPIRATION_SECONDS: 86400
+    ports:
+      - "8081:8081"
+
+  user-mysql:
+    image: mysql:8.4
+    container_name: user-mysql
+    environment:
+      MYSQL_DATABASE: user_service
+      MYSQL_USER: user_service_user
+      MYSQL_PASSWORD: user_service_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - user-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Docker/Dockerfile
+    container_name: product-service
+    depends_on:
+      product-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://product-mysql:3306/product_service
+      SPRING_DATASOURCE_USERNAME: product_service_user
+      SPRING_DATASOURCE_PASSWORD: product_service_password
+    ports:
+      - "8082:8082"
+
+  product-mysql:
+    image: mysql:8.4
+    container_name: product-mysql
+    environment:
+      MYSQL_DATABASE: product_service
+      MYSQL_USER: product_service_user
+      MYSQL_PASSWORD: product_service_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3308:3306"
+    volumes:
+      - product-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Docker/Dockerfile
+    container_name: inventory-service
+    depends_on:
+      inventory-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://inventory-mysql:3306/inventory_service
+      SPRING_DATASOURCE_USERNAME: inventory_service_user
+      SPRING_DATASOURCE_PASSWORD: inventory_service_password
+    ports:
+      - "8083:8083"
+
+  inventory-mysql:
+    image: mysql:8.4
+    container_name: inventory-mysql
+    environment:
+      MYSQL_DATABASE: inventory_service
+      MYSQL_USER: inventory_service_user
+      MYSQL_PASSWORD: inventory_service_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3309:3306"
+    volumes:
+      - inventory-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Docker/Dockerfile
+    container_name: order-service
+    depends_on:
+      order-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_service
+      SPRING_DATASOURCE_USERNAME: order_service_user
+      SPRING_DATASOURCE_PASSWORD: order_service_password
+    ports:
+      - "8084:8084"
+
+  order-mysql:
+    image: mysql:8.4
+    container_name: order-mysql
+    environment:
+      MYSQL_DATABASE: order_service
+      MYSQL_USER: order_service_user
+      MYSQL_PASSWORD: order_service_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3310:3306"
+    volumes:
+      - order-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Docker/Dockerfile
+    container_name: notification-service
+    depends_on:
+      notification-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://notification-mysql:3306/notification_service
+      SPRING_DATASOURCE_USERNAME: notification_service_user
+      SPRING_DATASOURCE_PASSWORD: notification_service_password
+    ports:
+      - "8085:8085"
+
+  notification-mysql:
+    image: mysql:8.4
+    container_name: notification-mysql
+    environment:
+      MYSQL_DATABASE: notification_service
+      MYSQL_USER: notification_service_user
+      MYSQL_PASSWORD: notification_service_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3311:3306"
+    volumes:
+      - notification-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  user-mysql-data:
+  product-mysql-data:
+  inventory-mysql-data:
+  order-mysql-data:
+  notification-mysql-data:
