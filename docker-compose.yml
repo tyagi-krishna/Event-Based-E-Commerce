@@ -1,4 +1,22 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3.13.6-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
   user-service:
     build:
       context: ./user-service
@@ -7,10 +25,15 @@ services:
     depends_on:
       user-mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/user_service
       SPRING_DATASOURCE_USERNAME: user_service_user
       SPRING_DATASOURCE_PASSWORD: user_service_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
       JWT_SECRET: replace-with-a-long-user-service-secret-for-local-dev
       JWT_ISSUER: user-service
       JWT_EXPIRATION_SECONDS: 86400
@@ -78,10 +101,15 @@ services:
     depends_on:
       inventory-mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://inventory-mysql:3306/inventory_service
       SPRING_DATASOURCE_USERNAME: inventory_service_user
       SPRING_DATASOURCE_PASSWORD: inventory_service_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     ports:
       - "8083:8083"
 
@@ -112,10 +140,15 @@ services:
     depends_on:
       order-mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_service
       SPRING_DATASOURCE_USERNAME: order_service_user
       SPRING_DATASOURCE_PASSWORD: order_service_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     ports:
       - "8084:8084"
 
@@ -146,10 +179,15 @@ services:
     depends_on:
       notification-mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://notification-mysql:3306/notification_service
       SPRING_DATASOURCE_USERNAME: notification_service_user
       SPRING_DATASOURCE_PASSWORD: notification_service_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     ports:
       - "8085:8085"
 
@@ -173,6 +211,7 @@ services:
       start_period: 30s
 
 volumes:
+  rabbitmq-data:
   user-mysql-data:
   product-mysql-data:
   inventory-mysql-data:
