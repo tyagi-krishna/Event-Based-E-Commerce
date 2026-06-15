@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -121,19 +122,23 @@ public class OrderService {
     }
 
     private OutboxEvent orderEvent(CustomerOrder order, String eventType) {
+        String eventId = UUID.randomUUID().toString();
         OutboxEvent event = new OutboxEvent();
+        event.setEventId(eventId);
         event.setAggregateType("Order");
         event.setAggregateId(order.getId());
         event.setEventType(eventType);
         event.setStatus(OutboxStatus.PENDING);
-        event.setPayload(orderPayload(order));
+        event.setPayload(orderPayload(order, eventId, eventType));
         return event;
     }
 
-    private String orderPayload(CustomerOrder order) {
+    private String orderPayload(CustomerOrder order, String eventId, String eventType) {
         return """
-                {"id":%d,"userId":%d,"status":"%s","totalAmount":%s,"items":%s,"createdAt":"%s","updatedAt":"%s"}
+                {"eventId":"%s","eventType":"%s","id":%d,"userId":%d,"status":"%s","totalAmount":%s,"items":%s,"createdAt":"%s","updatedAt":"%s"}
                 """.formatted(
+                eventId,
+                eventType,
                 order.getId(),
                 order.getUserId(),
                 order.getStatus().name(),

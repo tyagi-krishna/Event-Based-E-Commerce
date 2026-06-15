@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/migrations/create-users.sql
   - include:
       file: db/changelog/migrations/create-outbox.sql
+  - include:
+      file: db/changelog/migrations/add-event-id-to-outbox.sql

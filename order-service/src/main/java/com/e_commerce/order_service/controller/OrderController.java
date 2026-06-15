@@ -3,7 +3,9 @@ package com.e_commerce.order_service.controller;
 import com.e_commerce.order_service.dto.CreateOrderRequest;
 import com.e_commerce.order_service.dto.OrderResponse;
 import com.e_commerce.order_service.dto.UpdateOrderStatusRequest;
+import com.e_commerce.order_service.exception.TooManyRequestsException;
 import com.e_commerce.order_service.service.OrderService;
+import com.e_commerce.order_service.service.RateLimiterService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,10 +26,14 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final RateLimiterService rateLimiterService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponse createOrder(@Valid @RequestBody CreateOrderRequest request) {
+        if (!rateLimiterService.isAllowed("rate:checkout:" + request.userId(), 10, 60)) {
+            throw new TooManyRequestsException("Too many checkout attempts. Try again in 60 seconds.");
+        }
         return orderService.createOrder(request);
     }
 

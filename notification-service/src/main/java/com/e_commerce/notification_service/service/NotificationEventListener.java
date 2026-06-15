@@ -1,14 +1,16 @@
 package com.e_commerce.notification_service.service;
 
-import com.e_commerce.notification_service.config.RabbitMqConfig;
+import com.e_commerce.notification_service.entity.ProcessedEvent;
+import com.e_commerce.notification_service.repository.ProcessedEventRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 
@@ -18,22 +20,50 @@ import java.io.IOException;
 public class NotificationEventListener {
 
     private final ObjectMapper objectMapper;
+    private final ProcessedEventRepository processedEventRepository;
+    private final SimulationService simulationService;
 
-    @RabbitListener(queues = RabbitMqConfig.NOTIFICATION_QUEUE)
-    public void handleEvent(String payload, @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String eventType) {
-        String subject = switch (eventType) {
-            case RabbitMqConfig.USER_CREATED -> "New user created";
-            case RabbitMqConfig.ORDER_CREATED -> "New order received";
-            case RabbitMqConfig.ORDER_CONFIRMED -> "Order confirmed";
-            case RabbitMqConfig.ORDER_CANCELLED -> "Order cancelled";
-            default -> "Event received";
-        };
-
+    @RetryableTopic(attempts = "4", backoff = @Backoff(delay = 1000, multiplier = 2.0))
+    @KafkaListener(topics = {"user-created", "order-created"}, groupId = "notification-service")
+    @Transactional
+    public void handleEvent(String payload) {
         try {
-            JsonNode payloadNode = objectMapper.readTree(payload);
-            log.info("Notification: {} payload={}", subject, payloadNode.toPrettyString());
+            JsonNode root = objectMapper.readTree(payload);
+
+            String eventId = root.path("eventId").asText(null);
+            String eventType = root.path("eventType").asText(null);
+
+            if (eventId == null || eventType == null) {
+                log.warn("Notification event missing eventId or eventType, skipping: {}", payload);
+                return;
+            }
+
+            if (simulationService.shouldFail()) {
+                log.warn("[SIMULATE] Notification failure mode active — throwing to trigger retry chain. eventId={}", eventId);
+                throw new RuntimeException("Simulated notification failure");
+            }
+
+            if (processedEventRepository.existsByEventId(eventId)) {
+                log.info("Duplicate notification event detected eventId={} type={}, skipping", eventId, eventType);
+                return;
+            }
+
+            String subject = switch (eventType) {
+                case "UserCreated"    -> "Welcome! New user registered";
+                case "OrderCreated"   -> "Your order has been received";
+                case "OrderConfirmed" -> "Your order has been confirmed";
+                case "OrderCancelled" -> "Your order has been cancelled";
+                default               -> "Notification: " + eventType;
+            };
+
+            // Simulated email/SMS send
+            log.info("[NOTIFICATION] {} | eventId={} | payload={}", subject, eventId, root.toPrettyString());
+
+            // Saved in the same transaction as the log — atomic guarantee
+            processedEventRepository.save(new ProcessedEvent(eventId, eventType));
+
         } catch (IOException e) {
-            log.warn("Notification payload is not valid JSON for event {}: {}", eventType, payload);
+            log.warn("Notification payload is not valid JSON: {}", payload);
         }
     }
 }

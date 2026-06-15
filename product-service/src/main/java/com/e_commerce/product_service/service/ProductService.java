@@ -8,6 +8,8 @@ import com.e_commerce.product_service.exception.ProductNotFoundException;
 import com.e_commerce.product_service.exception.SkuAlreadyExistsException;
 import com.e_commerce.product_service.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,7 @@ public class ProductService {
                 .toList();
     }
 
+    @Cacheable(cacheNames = "products", key = "#id")
     @Transactional(readOnly = true)
     public ProductResponse getProduct(Long id) {
         return ProductResponse.from(findProduct(id));
@@ -60,6 +63,7 @@ public class ProductService {
         return ProductResponse.from(product);
     }
 
+    @CacheEvict(cacheNames = "products", key = "#id")
     @Transactional
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
         Product product = findProduct(id);
@@ -98,6 +102,7 @@ public class ProductService {
         return ProductResponse.from(savedProduct);
     }
 
+    @CacheEvict(cacheNames = "products", key = "#id")
     @Transactional
     public void deleteProduct(Long id) {
         Product product = findProduct(id);

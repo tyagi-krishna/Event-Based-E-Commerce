@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/migrations/create-inventory.sql
+  - include:
+      file: db/changelog/migrations/create-processed-events.sql

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -77,7 +78,8 @@ public class JwtService {
             return Optional.of(new JwtClaims(
                     Long.valueOf(claims.get("sub")),
                     claims.get("email"),
-                    claims.get("role")
+                    claims.get("role"),
+                    Instant.ofEpochSecond(expiresAt)
             ));
         } catch (RuntimeException exception) {
             return Optional.empty();
@@ -145,6 +147,6 @@ public class JwtService {
                 .replace("\"", "\\\"");
     }
 
-    public record JwtClaims(Long userId, String email, String role) {
+    public record JwtClaims(Long userId, String email, String role, Instant expiresAt) {
     }
 }

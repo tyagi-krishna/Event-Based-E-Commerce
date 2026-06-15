@@ -18,7 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class UserService {
     private final OutboxEventRepository outboxEventRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
@@ -96,6 +100,15 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    public void logout(String token) {
+        jwtService.parseToken(token).ifPresent(claims -> {
+            long ttlSeconds = Math.max(0, claims.expiresAt().getEpochSecond() - Instant.now().getEpochSecond());
+            if (ttlSeconds > 0) {
+                tokenBlacklistService.blacklist(token, Duration.ofSeconds(ttlSeconds));
+            }
+        });
+    }
+
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
@@ -119,19 +132,24 @@ public class UserService {
     }
 
     private OutboxEvent userCreatedEvent(User user) {
+        String eventId = UUID.randomUUID().toString();
+        String eventType = "UserCreated";
         OutboxEvent event = new OutboxEvent();
+        event.setEventId(eventId);
         event.setAggregateType("User");
         event.setAggregateId(user.getId());
-        event.setEventType("UserCreated");
+        event.setEventType(eventType);
         event.setStatus(OutboxStatus.PENDING);
-        event.setPayload(userCreatedPayload(user));
+        event.setPayload(userCreatedPayload(user, eventId, eventType));
         return event;
     }
 
-    private String userCreatedPayload(User user) {
+    private String userCreatedPayload(User user, String eventId, String eventType) {
         return """
-                {"id":%d,"email":"%s","role":"%s","createdAt":"%s"}
+                {"eventId":"%s","eventType":"%s","id":%d,"email":"%s","role":"%s","createdAt":"%s"}
                 """.formatted(
+                eventId,
+                eventType,
                 user.getId(),
                 escapeJson(user.getEmail()),
                 user.getRole().name(),
